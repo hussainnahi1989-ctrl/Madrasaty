@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>فحص مزامنة مدرستي — Firebase</title>
+<style>
+body{font-family:system-ui,'Segoe UI',Tahoma,sans-serif;background:#0b1526;color:#eaf2ff;margin:0;padding:18px}
+h1{font-size:20px;text-align:center}
+.card{background:#12203a;border:2px solid #22406b;border-radius:16px;padding:14px;margin:12px auto;max-width:640px}
+.ok{border-color:#0e7490;background:#062e33}
+.bad{border-color:#b91c1c;background:#3a0d0d}
+.b{font-weight:900;font-size:15px}
+.s{opacity:.85;font-size:12px;margin-top:6px;line-height:1.8;word-break:break-all}
+button{background:#0e7490;border:none;color:#fff;border-radius:10px;padding:10px 22px;font-weight:900;font-size:14px}
+</style>
+</head>
+<body>
+<h1>🏫 فحص السحابة — نظام مدرستي</h1>
+<div class="card"><div class="b">اضغط للتحديث</div><div class="s">هذه الصفحة تقرأ قاعدة Firebase مباشرة وتعرض حالة بياناتك.</div><br><button onclick="run()">🔄 تحديث الفحص</button></div>
+<div id="out"></div>
+<script>
+var KEY='AIzaSyDnkimOLyaxO7gn4aO9hZPrKAlMzwSx4R8';
+var BASE='https://firestore.googleapis.com/v1/projects/madrasaty-fc7d1/databases/%28default%29/documents/';
+function val(f){ if(!f) return ''; if(f.stringValue!==undefined) return f.stringValue; if(f.integerValue!==undefined) return f.integerValue; if(f.timestampValue!==undefined) return f.timestampValue; if(f.mapValue) return '[كائن]'; if(f.arrayValue) return '[قائمة]'; return JSON.stringify(f).slice(0,60); }
+function docs(data){ return (data&&data.documents)||[]; }
+function card(title,ok,lines){ return '<div class="card '+(ok?'ok':'bad')+'"><div class="b">'+(ok?'✅ ':'❌ ')+title+'</div><div class="s">'+lines.join('<br>')+'</div></div>'; }
+function run(){
+  var out=document.getElementById('out'); out.innerHTML='<div class="card"><div class="b">⏳ جارٍ الفحص…</div></div>';
+  Promise.all([
+    fetch(BASE+'schools?key='+KEY).then(r=>r.json()),
+    fetch(BASE+'users?key='+KEY).then(r=>r.json()),
+    fetch(BASE+'fcmTokens?key='+KEY).then(r=>r.json())
+  ]).then(function(res){
+    var h='';
+    var sch=docs(res[0]); var usr=docs(res[1]); var tok=docs(res[2]);
+    h+=card('المدارس المرفوعة: '+sch.length, sch.length>0, sch.slice(0,6).map(function(d){ var f=d.fields||{}; return '• '+ (d.name||'') +' — آخر تحديث: '+val(f.updated_at); }));
+    h+=card('حسابات المستخدمين: '+usr.length, usr.length>0, usr.slice(0,8).map(function(d){ var f=d.fields||{}; return '• دور: '+val(f.role)+' — مدرسة: '+val(f.schoolId)+' — '+val(f.name); }));
+    h+=card('أجهزة الإشعارات FCM: '+tok.length, tok.length>0, tok.slice(0,4).map(function(d){ var f=d.fields||{}; return '• '+val(f.role)+' / '+val(f.name); }));
+    if(sch.length){
+      var sid=sch[0].name;
+      fetch(BASE+'schools/'+sid+'/snapshot/data?key='+KEY).then(r=>r.json()).then(function(sn){
+        var d=sn&&sn.document&&sn.document.fields&&sn.document.fields.db&&sn.document.fields.db.mapValue&&sn.document.fields.db.mapValue.fields;
+        if(!d){ h+=card('لقطة البيانات',false,['لا توجد لقطة بعد — افتح التطبيق وسجّل الدخول ثم حدّث.']); out.innerHTML=h; return; }
+        var stu=0; try{ var sm=d.students&&d.students.mapValue&&d.students.mapValue.fields||{}; Object.keys(sm).forEach(function(k){ var arr=sm[k].arrayValue&&sm[k].arrayValue.values||[]; stu+=arr.length; }); }catch(e){}
+        var tsk=0,ntf=0; try{ var tm=d.settings.mapValue.fields.tasksModule.mapValue.fields; tsk=(tm.tasks&&tm.tasks.arrayValue&&tm.tasks.arrayValue.values||[]).length; ntf=(tm.notifs&&tm.notifs.arrayValue&&tm.notifs.arrayValue.values||[]).length; }catch(e){}
+        h+=card('لقطة مدرسة «'+sid+'»',true,['• الطلاب: '+stu+' • المهام: '+tsk+' • الإشعارات: '+ntf,'✅ بياناتك سحابية وتعمل!']);
+        out.innerHTML=h;
+      });
+    }
+    out.innerHTML=h;
+  }).catch(function(e){ out.innerHTML=card('خطأ بالاتصال',false,[String(e)]); });
+}
+run();
+</script>
+</body>
+</html>
