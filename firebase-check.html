@@ -86,8 +86,9 @@ function loadSchools(){
   req('GET','/schools?key='+KEY,function(l){
     if(!l&&loadTry<3){ loadTry++; setTimeout(loadSchools,2000); return; }
     loadTry=0;
+    if(!l){ try{ var cc=JSON.parse(localStorage.getItem('nb63_panel_cache')||'null'); if(cc){ l={documents:cc}; } }catch(e){} }
     if(!l){ document.getElementById('list').innerHTML='<div class="card bad"><div class="b">❌ تعذّر التحميل — اضغط تحديث أو تحقق من الإنترنت</div></div>'; return; }
-    var docs=(l&&l.documents)||[]; SCHOOLS=[]; var h='';
+    var docs=(l&&l.documents)||[]; try{ localStorage.setItem('nb63_panel_cache',JSON.stringify(docs)); }catch(e){} SCHOOLS=[]; var h='';
     docs.forEach(function(d){
       var f=d.fields||{}; var id=(d.name||'').split('/').pop();
       if(!sv(f.user)) return; /* مدارس التطبيق القديمة بدون اعتمادات تُدار من التطبيق */
