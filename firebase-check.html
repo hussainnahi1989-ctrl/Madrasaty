@@ -60,7 +60,7 @@ function req(m,path,body,cb){
   var x=new XMLHttpRequest();
   var fired=false; var done=function(v,st){ if(fired)return; fired=true; cb(v,st); };
   x.open(m,BASE+path,true);
-  x.setRequestHeader('Content-Type','application/json');
+  if(body){ try{ x.setRequestHeader('Content-Type','application/json'); }catch(e){} }
   try{ x.timeout=15000; }catch(e){}
   x.onload=function(){ try{ done(x.status<400?JSON.parse(x.responseText||'{}'):null,x.status); }catch(e){ done(null,x.status); } };
   x.onerror=function(){ done(null,0); };
@@ -101,7 +101,9 @@ function loadSchools(){
        +'<div class="s">👤 <span class="code">'+esc(sc.user)+'</span> · 🔑 <span class="code" id="pw-'+sc.id+'">••••••</span></div>'
        +'<div class="row">'
        +'<button onclick="showPw(\''+sc.id+'\')">👁 إظهار/إخفاء</button>'
-       +'<button class="gold" onclick="copyCreds(\''+sc.id+'\')">📋 نسخ الاعتمادات</button>'
+       +'<button class="gold" onclick="copyCreds(\''+sc.id+'\')">📋 نسخ</button>'
+       +'<button onclick="waCreds(\''+sc.id+'\')">📤 واتساب</button>'
+       +'<button onclick="printCreds(\''+sc.id+'\')">🖨 طباعة</button>'
        +(sc.enabled?'<button class="red" onclick="toggle(\''+sc.id+'\',false)">⛔ تعطيل</button>':'<button onclick="toggle(\''+sc.id+'\',true)">✅ تفعيل</button>')
        +'<button class="red" onclick="removeSchool(\''+sc.id+'\')">🗑 حذف</button>'
        +'</div></div>';
@@ -116,6 +118,12 @@ function copyCreds(id){ var sc=find(id); if(!sc)return; var t='🏫 '+sc.name+'\
 function writeSchool(sc,on){
   put('schools/'+sc.id,{id:sc.id,tenant:TEN,name:sc.name,manager:sc.mgr,user:sc.user,passPlain:sc.pass,enabled:sc.enabled?'true':'false',updated_at:new Date().toISOString()},on);
 }
+function credText(sc){ return '🏫 نظام مدرستي — اعتمادات مدرستكم\n🏫 المدرسة: '+sc.name+'\n👤 اسم المستخدم: '+sc.user+'\n🔑 كلمة السر: '+sc.pass+'\n🔗 رابط التطبيق: https://hussainnahi1989-ctrl.github.io/Madrasaty/madrasaty.html?v=64'; }
+function waCreds(id){ var sc=find(id); if(!sc)return; window.open('https://wa.me/?text='+encodeURIComponent(credText(sc)),'_blank'); }
+function printCreds(id){ var sc=find(id); if(!sc)return;
+  var w=window.open('','_blank'); if(!w){ alert(credText(sc)); return; }
+  w.document.write('<html dir="rtl"><head><meta charset="utf-8"><title>اعتمادات '+sc.name+'</title><style>body{font-family:Tahoma;padding:30px;font-size:18px;line-height:2} .c{border:2px solid #000;border-radius:12px;padding:20px;display:inline-block}</style></head><body><div class="c"><h2>🏫 '+sc.name+'</h2><p>👤 اسم المستخدم: <b>'+sc.user+'</b></p><p>🔑 كلمة السر: <b>'+sc.pass+'</b></p><p>🔗 الرابط: hussainnahi1989-ctrl.github.io/Madrasaty/madrasaty.html?v=64</p></div><script>window.print()</scr'+'ipt></body></html>');
+  w.document.close(); }
 function toggle(id,on){ var sc=find(id); if(!sc)return; sc.enabled=on; writeSchool(sc,function(){ loadSchools(); }); }
 function removeSchool(id){
   if(!confirm('حذف المدرسة نهائياً من اللوحة؟'))return;
