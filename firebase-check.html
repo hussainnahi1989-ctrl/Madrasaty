@@ -58,10 +58,14 @@ var TEN='MADRASATY-MAIN';
 function sv(f){ return (f&&f.stringValue!==undefined)?f.stringValue:''; }
 function req(m,path,body,cb){
   var x=new XMLHttpRequest();
+  var fired=false; var done=function(v,st){ if(fired)return; fired=true; cb(v,st); };
   x.open(m,BASE+path,true);
   x.setRequestHeader('Content-Type','application/json');
-  x.onload=function(){ try{ cb(x.status<400?JSON.parse(x.responseText||'{}'):null,x.status); }catch(e){ cb(null,x.status); } };
-  x.onerror=function(){ cb(null,0); };
+  try{ x.timeout=15000; }catch(e){}
+  x.onload=function(){ try{ done(x.status<400?JSON.parse(x.responseText||'{}'):null,x.status); }catch(e){ done(null,x.status); } };
+  x.onerror=function(){ done(null,0); };
+  x.ontimeout=function(){ done(null,0); };
+  setTimeout(function(){ done(null,0); },20000);
   x.send(body?JSON.stringify(body):null);
 }
 function fieldsOf(o){ var f={}; for(var k in o){ f[k]={stringValue:String(o[k])}; } return f; }
@@ -117,19 +121,19 @@ function addSchool(){
   var nm=document.getElementById('n-name').value.trim(), mgr=document.getElementById('n-mgr').value.trim();
   var out=document.getElementById('n-out');
   if(!nm){ out.innerHTML='⚠️ اكتب اسم المدرسة'; return; }
-  out.innerHTML='⏳ جارٍ الإنشاء والتحقق…';
-  req('GET','/meta/codes?key='+KEY,function(cd){
-    var used='|'+(cd&&cd.fields&&cd.fields.list?cd.fields.list.stringValue:'')+'|';
-    var user,pass,guard=0;
-    do{ user='sch-'+rnd(5); pass='wd-'+rnd(8); }while((used.indexOf('|'+user+'|')>=0||used.indexOf('|'+pass+'|')>=0)&&guard++<50);
-    var id='c'+Date.now().toString(36);
-    var sc={id:id,name:nm,mgr:mgr,user:user,pass:pass,enabled:true};
-    writeSchool(sc,function(ok,st){
-      if(!ok){ out.innerHTML='❌ فشل الحفظ ('+st+') — أعد المحاولة'; return; }
-      put('meta/codes',{list:(used.replace(/^\\|/,'').replace(/\\|$/,'')+'|'+user+'|'+pass)},function(){});
-      out.innerHTML='✅ أُنشئت وتحقّقنا منها!<br>👤 <span class="code">'+user+'</span> · 🔑 <span class="code">'+pass+'</span><br>📋 سلّمها للزبون.';
-      document.getElementById('n-name').value=''; document.getElementById('n-mgr').value='';
-      loadSchools();
+  out.innerHTML='⏳ جارٍ الإنشاء…';
+  var user='sch-'+rnd(6), pass='wd-'+rnd(10), g=0;
+  while(SCHOOLS.some(function(sc){ return sc.user===user||sc.pass===pass; })&&g++<30){ user='sch-'+rnd(6); pass='wd-'+rnd(10); }
+  var id='c'+Date.now().toString(36);
+  var sc={id:id,name:nm,mgr:mgr,user:user,pass:pass,enabled:true};
+  writeSchool(sc,function(ok,st){
+    if(!ok){ out.innerHTML='❌ فشل الحفظ ('+st+') — أعد المحاولة'; return; }
+    out.innerHTML='✅ أُنشئت المدرسة!<br>👤 <span class="code">'+user+'</span> · 🔑 <span class="code">'+pass+'</span><br>📋 سلّمها للزبون.';
+    document.getElementById('n-name').value=''; document.getElementById('n-mgr').value='';
+    loadSchools();
+    req('GET','/meta/codes?key='+KEY,function(cd){
+      var used=(cd&&cd.fields&&cd.fields.list)?cd.fields.list.stringValue:'';
+      put('meta/codes',{list:(used?used+'|':'')+user+'|'+pass},function(){});
     });
   });
 }
