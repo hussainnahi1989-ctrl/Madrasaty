@@ -3,61 +3,133 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>فحص مزامنة مدرستي — Firebase</title>
+<title>لوحة تحكم مدرستي — السوبر أدمن</title>
 <style>
-body{font-family:system-ui,'Segoe UI',Tahoma,sans-serif;background:#0b1526;color:#eaf2ff;margin:0;padding:18px}
-h1{font-size:20px;text-align:center}
-.card{background:#12203a;border:2px solid #22406b;border-radius:16px;padding:14px;margin:12px auto;max-width:640px}
+body{font-family:system-ui,'Segoe UI',Tahoma,sans-serif;background:#0b1526;color:#eaf2ff;margin:0;padding:14px}
+h1{font-size:19px;text-align:center}
+h2{font-size:15px;margin:18px 0 8px}
+.card{background:#12203a;border:2px solid #22406b;border-radius:16px;padding:14px;margin:10px auto;max-width:720px}
 .ok{border-color:#0e7490;background:#062e33}
 .bad{border-color:#b91c1c;background:#3a0d0d}
-.b{font-weight:900;font-size:15px}
+.warn{border-color:#b45309;background:#332008}
+.b{font-weight:900;font-size:14px}
 .s{opacity:.9;font-size:12px;margin-top:6px;line-height:1.9;word-break:break-all}
-button{background:#0e7490;border:none;color:#fff;border-radius:10px;padding:10px 22px;font-weight:900;font-size:14px}
+input,select{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1.5px solid #2a4f86;background:#0a1a30;color:#eaf2ff;font-size:14px;margin:4px 0}
+button{background:#0e7490;border:none;color:#fff;border-radius:10px;padding:9px 16px;font-weight:900;font-size:13px;margin:3px}
+button.red{background:#b91c1c} button.gold{background:#b45309} button.gray{background:#334155}
+.row{display:flex;gap:8px;flex-wrap:wrap} .row>*{flex:1;min-width:140px}
+.tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:900}
+.tag.on{background:#065f46} .tag.off{background:#7f1d1d}
+.code{font-family:monospace;background:#0a1a30;padding:2px 8px;border-radius:8px;border:1px solid #2a4f86}
+#gate{max-width:420px;margin:8vh auto;text-align:center}
 </style>
 </head>
 <body>
-<h1>🏫 فحص السحابة — نظام مدرستي</h1>
-<div class="card"><div class="b">🔄 تحديث الفحص</div><div class="s">تقرأ الصفحة قاعدة Firebase مباشرة وتعرض حالة بياناتك بالألوان.</div><br><button onclick="run()">🔄 تحديث الآن</button></div>
-<div id="out"></div>
+<div id="gate" class="card">
+  <h1>🔐 لوحة تحكم نظام مدرستي</h1>
+  <div class="s">خاصة بالسوبر أدمن فقط</div>
+  <input id="g-u" placeholder="اسم المستخدم">
+  <input id="g-p" type="password" placeholder="كلمة السر">
+  <button onclick="gate()">🚪 دخول اللوحة</button>
+  <div id="g-e" class="s" style="color:#fca5a5"></div>
+</div>
+<div id="panel" style="display:none">
+  <h1>🏫 لوحة تحكم مدرستي — السوبر أدمن</h1>
+  <div class="card">
+    <div class="b">➕ إنشاء مدرسة جديدة للزبون</div>
+    <div class="row">
+      <input id="n-name" placeholder="🏫 اسم المدرسة">
+      <input id="n-mgr" placeholder="👨‍💼 اسم المدير">
+    </div>
+    <button onclick="addSchool()">🎁 توليد الاعتمادات وإنشاء المدرسة</button>
+    <div id="n-out" class="s"></div>
+  </div>
+  <h2>📋 المدارس المسجلة</h2>
+  <div id="list"></div>
+  <h2>🩺 الفحص الفني</h2>
+  <div class="card"><button onclick="diag()">🔄 تحديث الفحص</button><div id="diag" class="s"></div></div>
+  <div class="card"><button class="gray" onclick="sessionStorage.removeItem('nb63adm');location.reload();">🚪 خروج من اللوحة</button></div>
+</div>
 <script>
 var KEY='AIzaSyDnkimOLyaxO7gn4aO9hZPrKAlMzwSx4R8';
 var BASE='https://firestore.googleapis.com/v1/projects/madrasaty-fc7d1/databases/%28default%29/documents';
+var TEN='MADRASATY-MAIN';
 function sv(f){ return (f&&f.stringValue!==undefined)?f.stringValue:''; }
-function card(title,ok,lines){ return '<div class="card '+(ok?'ok':'bad')+'"><div class="b">'+(ok?'✅ ':'❌ ')+title+'</div><div class="s">'+lines.join('<br>')+'</div></div>'; }
-function run(){
-  var out=document.getElementById('out'); out.innerHTML='<div class="card"><div class="b">⏳ جارٍ الفحص…</div></div>';
-  var h='';
-  try{
-    var st=JSON.parse(localStorage.getItem('nb60_status')||'null');
-    var mode=localStorage.getItem('nb44_mode')||'(غير محدد)';
-    h+=card('حالة المزامنة على هذا المتصفح', !!(st&&st.ok), [
-      '• وضع الجهاز: '+mode,
-      st?('• آخر رفع: '+(st.ok?'ناجح':'فاشل')+' — '+new Date(st.ts).toLocaleString()+' ('+(st.okc||'')+'/'+(st.total||'')+' وثيقة)'):'• لم يُسجَّل رفع من هذا المتصفح بعد'
-    ]);
-  }catch(e){}
-  fetch(BASE+'/schools?key='+KEY).then(function(r){return r.json();}).then(function(list){
-    var docs=(list&&list.documents)||[];
-    var best='',sid=null,name='';
-    docs.forEach(function(d){ var f=d.fields||{}; var up=sv(f.updated_at); if(up>=best){ best=up; sid=(d.name||'').split('/').pop(); name=sv(f.name)||sid; } });
-    h+=card('المدارس المرفوعة إلى Firebase: '+docs.length, docs.length>0, docs.slice(0,6).map(function(d){ var f=d.fields||{}; return '• '+sv(f.name)+' — آخر تحديث: '+sv(f.updated_at); }));
-    if(!sid){ out.innerHTML=h+card('لقطة البيانات',false,['لا توجد لقطة بعد — افتح التطبيق وسجّل الدخول ثم حدّث هنا.']); return; }
-    fetch(BASE+'/schools/'+encodeURIComponent(sid)+'/snapshot/data?key='+KEY).then(function(r){return r.json();}).then(function(sn){
-      var data=sv(sn&&sn.fields&&sn.fields.data);
-      if(!data){ out.innerHTML=h+card('لقطة مدرسة '+name,false,['توجد مدرسة لكن بلا لقطة بيانات.']); return; }
-      var dbj=JSON.parse(data);
-      var stu=0; try{ Object.keys(dbj.students||{}).forEach(function(k){ stu+=(dbj.students[k]||[]).length; }); }catch(e){}
-      var tm=(dbj.settings&&dbj.settings.tasksModule)||{};
-      var tsk=(tm.tasks||[]).length, ntf=(tm.notifs||[]).length, stf=(dbj.staff||[]).length;
-      out.innerHTML=h+card('لقطة مدرسة «'+name+'»',true,[
-        '• الطلاب: '+stu+' • الكادر: '+stf,
-        '• المهام: '+tsk+' • الإشعارات: '+ntf,
-        '• آخر تحديث: '+best,
-        ' بياناتك سحابية حقيقية وتعمل!'
-      ]);
-    }).catch(function(e){ out.innerHTML=h+card('خطأ بقراءة اللقطة',false,[String(e)]); });
-  }).catch(function(e){ out.innerHTML=card('خطأ بالاتصال',false,[String(e)]); });
+function req(m,path,body,cb){
+  var x=new XMLHttpRequest();
+  x.open(m,BASE+path,true);
+  x.setRequestHeader('Content-Type','application/json');
+  x.onload=function(){ try{ cb(x.status<400?JSON.parse(x.responseText||'{}'):null,x.status); }catch(e){ cb(null,x.status); } };
+  x.onerror=function(){ cb(null,0); };
+  x.send(body?JSON.stringify(body):null);
 }
-run();
+function doc(path,cb){ req('GET','/'+path+'?key='+KEY,function(d){ cb(d); }); }
+function put(path,obj,cb){
+  var fields={}; for(var k in obj){ fields[k]={stringValue:String(obj[k])}; }
+  req('PATCH','/'+path+'?key='+KEY,{fields:fields},cb);
+}
+function rnd(n){ var c='abcdefghjkmnpqrstuvwxyz23456789',x=''; for(var i=0;i<n;i++)x+=c[Math.floor(Math.random()*c.length)]; return x; }
+function gate(){
+  var u=document.getElementById('g-u').value.trim(), p=document.getElementById('g-p').value;
+  if(u==='hussain'&&p==='8245310'){ sessionStorage.setItem('nb63adm','1'); openPanel(); }
+  else document.getElementById('g-e').textContent='❌ بيانات غير صحيحة';
+}
+function openPanel(){ document.getElementById('gate').style.display='none'; document.getElementById('panel').style.display='block'; loadSchools(); }
+var SCHOOLS=[];
+function loadSchools(){
+  req('GET','/schools?key='+KEY,function(l){
+    var docs=(l&&l.documents)||[]; SCHOOLS=[];
+    var h='';
+    docs.forEach(function(d){
+      var f=d.fields||{}; var id=(d.name||'').split('/').pop();
+      var sc={id:id,name:sv(f.name),user:sv(f.user),pass:sv(f.passPlain),mgr:sv(f.manager),enabled:sv(f.enabled)!=='false',upd:sv(f.updated_at)};
+      SCHOOLS.push(sc);
+      h+='<div class="card '+(sc.enabled?'ok':'bad')+'">'
+        +'<div class="b">🏫 '+esc(sc.name)+' <span class="tag '+(sc.enabled?'on':'off')+'">'+(sc.enabled?'مفعّلة':'معطّلة')+'</span></div>'
+        +'<div class="s">👨‍💼 '+esc(sc.mgr||'—')+' · آخر تحديث: '+esc(sc.upd||'—')+'</div>'
+        +'<div class="s">👤 المستخدم: <span class="code">'+esc(sc.user||'—')+'</span> · 🔑 كلمة السر: <span class="code" id="pw-'+id+'">••••••</span></div>'
+        +'<div class="row">'
+        +'<button onclick="showPw(\''+id+'\')">👁 إظهار/إخفاء السر</button>'
+        +'<button class="gold" onclick="copyCreds(\''+id+'\')">📋 نسخ الاعتمادات</button>'
+        +(sc.enabled?'<button class="red" onclick="toggle(\''+id+'\',false)">⛔ تعطيل المدرسة</button>':'<button onclick="toggle(\''+id+'\',true)">✅ تفعيل المدرسة</button>')
+        +'</div></div>';
+    });
+    document.getElementById('list').innerHTML=h||'<div class="card warn"><div class="b">لا مدارس بعد — أنشئ أول مدرسة أعلاه.</div></div>';
+  });
+}
+function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function find(id){ for(var i=0;i<SCHOOLS.length;i++) if(SCHOOLS[i].id===id) return SCHOOLS[i]; return null; }
+function showPw(id){ var sc=find(id); var el=document.getElementById('pw-'+id); if(!sc)return; el.textContent=(el.textContent==='••••••')?sc.pass:'••••••'; }
+function copyCreds(id){ var sc=find(id); if(!sc)return; var t='🏫 '+sc.name+'\n👤 '+sc.user+'\n🔑 '+sc.pass+'\n🔗 https://hussainnahi1989-ctrl.github.io/Madrasaty/madrasaty.html?v=63'; try{ navigator.clipboard.writeText(t); alert('✅ نُسخت الاعتمادات — أرسلها للزبون'); }catch(e){ prompt('انسخ يدوياً:',t); } }
+function toggle(id,on){
+  var sc=find(id); if(!sc)return;
+  var obj={id:sc.id,tenant:TEN,name:sc.name,manager:sc.mgr,user:sc.user,passPlain:sc.pass,enabled:on?'true':'false',updated_at:new Date().toISOString()};
+  put('schools/'+id,obj,function(ok){ loadSchools(); });
+}
+function addSchool(){
+  var nm=document.getElementById('n-name').value.trim(), mgr=document.getElementById('n-mgr').value.trim();
+  if(!nm){ document.getElementById('n-out').innerHTML='⚠️ اكتب اسم المدرسة'; return; }
+  var id='c'+Date.now().toString(36);
+  var user='sch-'+rnd(4), pass='wd-'+rnd(6);
+  var g=0; SCHOOLS.forEach(function(s){ if(s.user===user) g=1; }); if(g) user='sch-'+rnd(5);
+  var obj={id:id,tenant:TEN,name:nm,manager:mgr,user:user,passPlain:pass,enabled:'true',created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  put('schools/'+id,obj,function(ok,st){
+    document.getElementById('n-out').innerHTML= ok
+      ? '✅ أُنشئت المدرسة!<br>👤 المستخدم: <span class="code">'+user+'</span> · 🔑 السر: <span class="code">'+pass+'</span><br>📋 سلّمها للزبون ليفتح مدرسته من البرنامج الرئيسي.'
+      : '❌ فشل الإنشاء ('+st+')';
+    if(ok){ document.getElementById('n-name').value=''; document.getElementById('n-mgr').value=''; loadSchools(); }
+  });
+}
+function diag(){
+  var out='';
+  req('GET','/schools?key='+KEY,function(l){
+    var docs=(l&&l.documents)||[];
+    out+='<br>• المدارس في Firebase: '+docs.length;
+    docs.forEach(function(d){ var f=d.fields||{}; out+='<br> — '+sv(f.name)+' ('+(sv(f.enabled)!=='false'?'مفعّلة':'معطّلة')+') آخر تحديث '+sv(f.updated_at); });
+    document.getElementById('diag').innerHTML=out;
+  });
+}
+if(sessionStorage.getItem('nb63adm')==='1') openPanel();
 </script>
 </body>
 </html>
