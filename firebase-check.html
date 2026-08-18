@@ -145,7 +145,7 @@ function fetchRemote(attempt,manual){
 }
 function find(id){ for(var i=0;i<SCHOOLS.length;i++) if(SCHOOLS[i].id===id) return SCHOOLS[i]; return null; }
 function showPw(id){ var sc=find(id); var el=document.getElementById('pw-'+id); if(!sc||!el)return; el.textContent=(el.textContent==='••••••')?sc.pass:'••••••'; }
-function credText(sc){ return '🏫 نظام مدرستي — اعتمادات مدرستكم\n🏫 المدرسة: '+sc.name+'\n👤 اسم المستخدم: '+sc.user+'\n🔑 كلمة السر: '+sc.pass+'\n🔗 رابط التطبيق: '+APPLINK+'\n\nطريقة الدخول: افتح الرابط واكتب الاسمين في أي حقلين ثم اضغط دخول.'; }
+function credText(sc){ return '🏫 نظام مدرستي — اعتمادات مدرستكم\n🏫 المدرسة: '+sc.name+'\n👤 اسم المستخدم: '+sc.user+'\n🔑 كلمة السر: '+sc.pass+'\n👨🏫 المعلمون والطلاب: نفس اسم المستخدم أعلاه + الرمز الخاص بكل واحد (من شاشة «إدارة الحسابات والرموز» داخل التطبيق)\n🔗 رابط التطبيق: '+APPLINK+'\n\nطريقة الدخول: افتح الرابط واكتب الاسمين في أي حقلين ثم اضغط دخول.'; }
 function waUrl(sc){ var ph=String(sc.phone||'').replace(/\D/g,''); return 'https://wa.me/'+(ph?ph+'?':'?')+'text='+encodeURIComponent(credText(sc)); }
 function copyCreds(id){ var sc=find(id); if(!sc)return;
   try{ navigator.clipboard.writeText(credText(sc)); alert('✅ نُسخت الاعتمادات'); }catch(e){ prompt('انسخ يدوياً:',credText(sc)); } }
